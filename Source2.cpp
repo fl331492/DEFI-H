@@ -2,10 +2,12 @@
 #include <opencv2\highgui.hpp>
 #include <opencv2\imgproc.hpp>
 #include <iostream>
+#include <math.h>
+
 #define RED 2
 #define GREEN 1
 #define BLUE 0
-#define BRIGHTNESS_TRESHOLD 75
+#define BRIGHTNESS_TRESHOLD 80
 
 using namespace cv;
 using namespace std;
@@ -30,7 +32,7 @@ double getBrightnessByRVB(double r, double v, double b) {
 
 /*Code pour aller de RVB vers TLS*/
 
-int getMaxValue(int red, int green, int blue) {
+double getMaxValue(double red, double green, double blue) {
 	if (red >= green && red >= blue) {
 		return red;
 	}
@@ -45,7 +47,7 @@ int getMaxValue(int red, int green, int blue) {
 	}
 }
 
-char* getRVBMax(int red, int green, int blue) {
+char* getRVBMax(double red, double green, double blue) {
 	if (red >= green && red >= blue) {
 		return "Red";
 	}
@@ -60,7 +62,7 @@ char* getRVBMax(int red, int green, int blue) {
 	}
 }
 
-int getMinValue(int red, int green, int blue) {
+double getMinValue(double red, double green, double blue) {
 	if (red <= green && red <= blue) {
 		return red;
 	}
@@ -75,54 +77,50 @@ int getMinValue(int red, int green, int blue) {
 	}
 }
 
-double getChroma(int max, int min) {
+double getChroma(double max, double min) {
 	return (double)max - min;
 }
 
-double getMod(double value, int mod) {
-	double result = value / mod;
-	return value - (int)result;
-}
 
-double getHue(int red, int green, int blue) {
+double getHue(double red, double green, double blue) {
 	if (getRVBMax(red, green, blue) == "Red") {
-		return (60 * getMod(((green - blue) / getChroma(getMaxValue(red, green, blue), getMinValue(red, green, blue)) + 6), 6));
+		return (60 * fmod(((green - blue) / getChroma(red, getMinValue(red, green, blue)) + 6), 6));
 	}
 	else if (getRVBMax(red, green, blue) == "Green") {
-		return (double)(60 * ((blue - red) / getChroma(getMaxValue(red, green, blue), getMinValue(red, green, blue)) + 2));
+		return (60 * ((blue - red) / getChroma(green, getMinValue(red, green, blue)) + 2));
 	}
 	else if (getRVBMax(red, green, blue) == "Blue") {
-		return (double)(60 * ((red - green) / getChroma(getMaxValue(red, green, blue), getMinValue(red, green, blue)) + 4));
+		return (60 * ((red - green) / getChroma(blue, getMinValue(red, green, blue)) + 4));
 	}
 	else if (getChroma(getMaxValue(red, green, blue), getMinValue(red, green, blue) == 0)) {
 		return -1;
 	}
 }
 
-int getBrightness(int red, int green, int blue) {
+double getBrightness(double red, double green, double blue) {
 	return getMaxValue(red, green, blue) * 100 / 255;
 }
 
-float getSaturation(int max, int chroma) {
+double getSaturation(double max, double chroma) {
 	if (max == 0) {
 		return 0;
 	}
 	else if (max>0) {
-		return (float)chroma / (float)max * 100;
+		return chroma / max * 100;
 	}
 }
 
-void printTLS(int red, int green, int blue) {
-	int max = getMaxValue(red, green, blue);
-	printf("Max : %d \n", max);
-	int min = getMinValue(red, green, blue);
-	printf("Min : %d \n", min);
+void printTLS(double red, double green, double blue) {
+	double max = getMaxValue(red, green, blue);
+	printf("Max : %f \n", max);
+	double min = getMinValue(red, green, blue);
+	printf("Min : %f \n", min);
 	double chroma = getChroma(max, min);
-	int brightness = getBrightness(red, green, blue);
-	float saturation = getSaturation(max, chroma);
+	double brightness = getBrightness(red, green, blue);
+	double saturation = getSaturation(max, chroma);
 	double hue = getHue(red, green, blue);
 	printf("Chroma : %f \n", chroma);
-	printf("Luminosite : %d \n", brightness);
+	printf("Luminosite : %f \n", brightness);
 	printf("Saturation : %f \n", saturation);
 	printf("Teinte : %f \n", hue);
 	int d;
@@ -133,19 +131,19 @@ void printTLS(int red, int green, int blue) {
 
 /*Code pour aller de TLS vers RVB*/
 
-int getChromaPercentage(int brightness, float saturation) {
-	return brightness*saturation / 100;
+double getChromaPercentage(double brightness, double saturation) {
+	return (double)brightness*saturation / 100;
 }
 
 double getHuePrime(double hue) {
 	return hue / 60;
 }
 
-int getColorX(int chroma, double hueprime) {
-	return chroma*(1 - abs(getMod(hueprime, 2) - 1));
+double getColorX(double chroma, double hueprime) {
+	return chroma*(1 - abs(fmod(hueprime, 2) - 1));
 }
 
-double* getRVB(double hueprime, int brightness, int chroma, int colorX) {
+double* getRVB(double hueprime, double brightness, double chroma, double colorX) {
 	double rvb[3];
 	double m = (double)brightness - (double)chroma;
 	if (0.0 <= hueprime && hueprime< 1.0) {
@@ -186,18 +184,18 @@ double* getRVB(double hueprime, int brightness, int chroma, int colorX) {
 	return rvb;
 }
 
-void printRVB() {
+void printRVB(double _brightness, double _saturation, double _hue) {
 	int i = 0;
 	char* letter = { 0 };
-	int brightness = 79;
-	float saturation = 82;
-	double hue = 82;
-	int chromaPercentage = getChromaPercentage(brightness, saturation);
-	double  hueprime = getHuePrime(hue);
-	int colorX = getColorX(chromaPercentage, hueprime);
-	printf("Chroma : %d \n", chromaPercentage);
+	double brightness = _brightness;
+	double saturation = _saturation;
+	double hue = _hue;
+	double chromaPercentage = getChromaPercentage(brightness, saturation);
+	double hueprime = getHuePrime(hue);
+	double colorX = getColorX(chromaPercentage, hueprime);
+	printf("Chroma : %f \n", chromaPercentage);
 	printf("Hue' : %f \n", hueprime);
-	printf("ColorX : %d \n", colorX);
+	printf("ColorX : %f \n", colorX);
 	for (i; i < 3; i++) {
 		if (i == 0) {
 			letter = "Red";
@@ -208,30 +206,26 @@ void printRVB() {
 		else if (i == 2) {
 			letter = "Blue";
 		}
-		printf("%s : %d \n", letter, getRVB(hueprime, brightness, chromaPercentage, colorX)[i]);
+		printf("%s : %f \n", letter, getRVB(hueprime, brightness, chromaPercentage, colorX)[i]);
 	}
-	int d;
-	scanf("d", &d);
 }
-
-/*Fin du code pour aller de TLS vers RVB*/
 
 
 int main(int argc, char** argv)
 {
-	IplImage* imagen = cvLoadImage("C:\\Users\\Balzrog\\Pictures\\image-joyeuse.jpg");
+	IplImage* imagen = cvLoadImage("C:\\Users\\Balzrog\\Pictures\\Images DEFI H\\Descargar.jpg");
 	Mat image = cv::cvarrToMat(imagen, false);
 	displayImage("Base window", image);
-	int* rvb;
-	int red, green, blue;
-	int max;
-	int min;
+	double* rvb;
+	double red, green, blue;
+	double max;
+	double min;
 	double chroma;
-	float saturation;
+	double saturation;
 	double hue;
-	int chromaPercentage;
+	double chromaPercentage;
 	double hueprime;
-	int colorX;
+	double colorX;
 
 	for (int i = 0; i < image.rows; i++)
 	{
@@ -239,37 +233,36 @@ int main(int argc, char** argv)
 		{
 			CvScalar pixel = cvGet2D(imagen, i, j);
 			double brightness = getBrightnessByRVB(pixel.val[BLUE], pixel.val[GREEN], pixel.val[RED]);
-
-			int brightness2 = getBrightness(pixel.val[BLUE], pixel.val[GREEN], pixel.val[RED]);
 			red = pixel.val[RED];
 			green = pixel.val[GREEN];
 			blue = pixel.val[BLUE];
 			max = getMaxValue(red, green, blue);
 			min = getMinValue(red, green, blue);
 			chroma = getChroma(max, min);
+
 			saturation = getSaturation(max, chroma);
 			hue = getHue(red, green, blue);
 
-			chromaPercentage = getChromaPercentage(70, saturation);
+			chromaPercentage = getChromaPercentage(brightness, saturation);
 			hueprime = getHuePrime(hue);
 			colorX = getColorX(chromaPercentage, hueprime);
-			
 
 
+			if (brightness >= BRIGHTNESS_TRESHOLD) {
 
-			if (brightness2 >= BRIGHTNESS_TRESHOLD) {
 				int difference = brightness - BRIGHTNESS_TRESHOLD;
 				float ratio = ((float)BRIGHTNESS_TRESHOLD / 100.0) + (1 - (float)BRIGHTNESS_TRESHOLD / 100.0) - (1 - (float)BRIGHTNESS_TRESHOLD / 100.0)*difference / (100 - BRIGHTNESS_TRESHOLD);
 				pixel.val[BLUE] *= ratio;
 				pixel.val[GREEN] *= ratio;
 				pixel.val[RED] *= ratio;
 				
-				/*pixel.val[BLUE] -= difference;
-				pixel.val[GREEN] -= difference;
-				pixel.val[RED] -= difference;*/
-				//pixel.val[RED] = getRVB(hueprime, 70, chromaPercentage, colorX)[0];
-				//pixel.val[GREEN] = getRVB(hueprime, 70, chromaPercentage, colorX)[1];
-				//pixel.val[BLUE] = getRVB(hueprime, 70, chromaPercentage, colorX)[2];
+				//pixel.val[BLUE] -= difference;
+				//pixel.val[GREEN] -= difference;
+				//pixel.val[RED] -= difference;
+
+				//pixel.val[RED] = getRVB(hueprime, BRIGHTNESS_TRESHOLD, chromaPercentage, colorX)[0];
+				//pixel.val[GREEN] = getRVB(hueprime, BRIGHTNESS_TRESHOLD, chromaPercentage, colorX)[1];
+				//pixel.val[BLUE] = getRVB(hueprime, BRIGHTNESS_TRESHOLD, chromaPercentage, colorX)[2];
 			}
 			cvSet2D(imagen, i, j, pixel);
 			//printf("i:%d j:%d Bleu : %f ; Vert : %f ; Rouge : %f \n ", i, j, pixel.val[BLUE], pixel.val[GREEN], pixel.val[RED]);
